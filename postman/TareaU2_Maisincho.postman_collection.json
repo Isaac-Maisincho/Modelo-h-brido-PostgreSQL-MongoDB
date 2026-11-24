@@ -1,0 +1,1179 @@
+{
+  "info": {
+    "_postman_id": "8c0b5a3e-1d2f-4e6a-9b7c-2a1d3e4f5a68",
+    "name": "TareaU2 · Caso 8 Cursos en línea · Maisincho",
+    "description": "Modelo híbrido PostgreSQL + MongoDB. Ejecutar completa con Collection Runner, en orden. Es repetible: cada corrida usa un código de curso nuevo y al final borra la matrícula y el curso. Requiere `node prisma/seed.js` (usuarios admin@cursos.com y estudiante@cursos.com).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "1. Autenticación",
+      "item": [
+        {
+          "name": "Login administrador",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Datos únicos por ejecución: la colección se puede correr varias veces seguidas",
+                  "const n = Math.floor(1000 + Math.random() * 9000);",
+                  "pm.collectionVariables.set(\"cursoCodigo\", \"CRS-\" + n);",
+                  "pm.collectionVariables.set(\"runTag\", \"RUN\" + n);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Login admin responde 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Login admin devuelve un token JWT\", () => {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json.token).to.be.a(\"string\").and.not.empty;",
+                  "  pm.collectionVariables.set(\"adminToken\", json.token);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{adminEmail}}\",\n  \"password\": \"{{adminPassword}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "Login estudiante",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Login estudiante responde 200 con token\", () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json.token).to.be.a(\"string\").and.not.empty;",
+                  "  pm.collectionVariables.set(\"estToken\", json.token);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{estEmail}}\",\n  \"password\": \"{{estPassword}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Catálogo de cursos (MongoDB)",
+      "item": [
+        {
+          "name": "Crear curso (201)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Crear curso responde 201\", () => pm.response.to.have.status(201));",
+                  "const curso = pm.response.json();",
+                  "pm.collectionVariables.set(\"cursoId\", curso._id);",
+                  "pm.test(\"El hook pre('validate') numera los módulos y el virtual suma la duración\", () => {",
+                  "  pm.expect(curso.modulos.map(m => m.orden)).to.eql([1, 2, 3]);",
+                  "  pm.expect(curso.duracionTotalMinutos).to.eql(180);",
+                  "  pm.expect(curso.codigo).to.eql(pm.collectionVariables.get(\"cursoCodigo\"));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/cursos",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "cursos"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"codigo\": \"{{cursoCodigo}}\",\n  \"titulo\": \"Backend con Node.js y Express {{runTag}}\",\n  \"descripcion\": \"Curso práctico de APIs REST con Express, Prisma y Mongoose.\",\n  \"nivel\": \"INTERMEDIO\",\n  \"precio\": 120,\n  \"instructor\": \"Ing. Paulo Galarza\",\n  \"modulos\": [\n    { \"titulo\": \"Introducción a Express\", \"duracionMinutos\": 45 },\n    { \"titulo\": \"Prisma 7 y PostgreSQL\", \"duracionMinutos\": 60 },\n    { \"titulo\": \"Mongoose y MongoDB\", \"duracionMinutos\": 75 }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Crear curso inválido (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Curso inválido responde 400 con mensajes en español\", () => {",
+                  "  pm.response.to.have.status(400);",
+                  "  const json = pm.response.json();",
+                  "  const campos = json.errors.map(e => e.campo);",
+                  "  pm.expect(campos).to.include.members([\"codigo\", \"titulo\", \"nivel\", \"precio\", \"modulos\"]);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/cursos",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "cursos"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"codigo\": \"X-1\",\n  \"titulo\": \"abc\",\n  \"descripcion\": \"corta\",\n  \"nivel\": \"EXPERTO\",\n  \"precio\": 9000,\n  \"instructor\": \"Ana\",\n  \"modulos\": []\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Buscar cursos ?q= &fields= &sort=",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Búsqueda responde 200\", () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test(\"?q= encuentra el curso creado (regex insensible a mayúsculas)\", () => {",
+                  "  const ids = json.data.map(c => c._id);",
+                  "  pm.expect(ids).to.include(pm.collectionVariables.get(\"cursoId\"));",
+                  "});",
+                  "pm.test(\"?fields= proyecta solo titulo, nivel y precio\", () => {",
+                  "  const c = json.data[0];",
+                  "  pm.expect(c).to.have.property(\"titulo\");",
+                  "  pm.expect(c).to.have.property(\"precio\");",
+                  "  pm.expect(c).to.not.have.property(\"descripcion\");",
+                  "  pm.expect(c).to.not.have.property(\"instructor\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/cursos?q={{runTag}}&fields=titulo,nivel,precio&sort=precio",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "cursos"
+              ],
+              "query": [
+                {
+                  "key": "q",
+                  "value": "{{runTag}}"
+                },
+                {
+                  "key": "fields",
+                  "value": "titulo,nivel,precio"
+                },
+                {
+                  "key": "sort",
+                  "value": "precio"
+                }
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "Buscar en minúsculas y ordenar ?sort=-createdAt",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.variables.set(\"runTagLower\", pm.collectionVariables.get(\"runTag\").toLowerCase());"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"?sort=-createdAt devuelve fechas en orden descendente\", () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  const fechas = pm.response.json().data.map(c => new Date(c.createdAt).getTime());",
+                  "  const ordenadas = [...fechas].sort((a, b) => b - a);",
+                  "  pm.expect(fechas).to.eql(ordenadas);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/cursos?q={{runTagLower}}&sort=-createdAt",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "cursos"
+              ],
+              "query": [
+                {
+                  "key": "q",
+                  "value": "{{runTagLower}}"
+                },
+                {
+                  "key": "sort",
+                  "value": "-createdAt"
+                }
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "Obtener curso por id (200)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Detalle del curso trae los módulos embebidos\", () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  pm.expect(pm.response.json().modulos).to.have.lengthOf(3);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/cursos/{{cursoId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "cursos",
+                "{{cursoId}}"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "Obtener curso con id inválido (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"ObjectId inválido responde 400\", () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/cursos/no-es-un-id",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "cursos",
+                "no-es-un-id"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "Actualizar curso con PUT (200)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"PUT responde 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"save() ejecuta el pre('validate'): título normalizado y módulos numerados\", () => {",
+                  "  const c = pm.response.json();",
+                  "  pm.expect(c.titulo).to.eql(\"Backend con Node.js avanzado \" + pm.collectionVariables.get(\"runTag\"));",
+                  "  pm.expect(c.precio).to.eql(150);",
+                  "  pm.expect(c.modulos.map(m => m.orden)).to.eql([1, 2, 3, 4]);",
+                  "  pm.expect(c.duracionTotalMinutos).to.eql(210);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/cursos/{{cursoId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "cursos",
+                "{{cursoId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"titulo\": \"   Backend   con Node.js   avanzado {{runTag}}  \",\n  \"precio\": 150,\n  \"modulos\": [\n    { \"titulo\": \"Introducción a Express\", \"duracionMinutos\": 45 },\n    { \"titulo\": \"Prisma 7 y PostgreSQL\", \"duracionMinutos\": 60 },\n    { \"titulo\": \"Mongoose y MongoDB\", \"duracionMinutos\": 75 },\n    { \"titulo\": \"Modelo híbrido\", \"duracionMinutos\": 30 }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Matrículas (PostgreSQL + MongoDB)",
+      "item": [
+        {
+          "name": "Matricular estudiante (201)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Matrícula responde 201\", () => pm.response.to.have.status(201));",
+                  "const m = pm.response.json();",
+                  "pm.collectionVariables.set(\"matriculaId\", m.id);",
+                  "pm.test(\"La matrícula guarda el cursoId de MongoDB y el precio vigente\", () => {",
+                  "  pm.expect(m.cursoId).to.eql(pm.collectionVariables.get(\"cursoId\"));",
+                  "  pm.expect(m.montoPagado).to.eql(150);",
+                  "  pm.expect(m.estadoPago).to.eql(\"PAGADO\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/matriculas",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "matriculas"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"cursoId\": \"{{cursoId}}\",\n  \"metodoPago\": \"TARJETA\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{estToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Matrícula duplicada (409)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Matrícula duplicada responde 409 (P2002)\", () => {",
+                  "  pm.response.to.have.status(409);",
+                  "  pm.expect(pm.response.json().message).to.include(\"ya está matriculado\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/matriculas",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "matriculas"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"cursoId\": \"{{cursoId}}\",\n  \"metodoPago\": \"TARJETA\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{estToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Matrícula a curso inexistente (404)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Curso inexistente responde 404\", () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/matriculas",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "matriculas"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"cursoId\": \"000000000000000000000000\",\n  \"metodoPago\": \"TARJETA\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{estToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Mis matrículas con datos del curso (200)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Consulta unida responde 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Cada matrícula trae el objeto curso desde MongoDB\", () => {",
+                  "  const data = pm.response.json().data;",
+                  "  const m = data.find(x => x.id === Number(pm.collectionVariables.get(\"matriculaId\")));",
+                  "  pm.expect(m).to.exist;",
+                  "  pm.expect(m.curso.codigo).to.eql(pm.collectionVariables.get(\"cursoCodigo\"));",
+                  "  pm.expect(m.curso).to.have.all.keys(\"_id\", \"codigo\", \"titulo\", \"nivel\", \"precio\", \"instructor\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/matriculas",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "matriculas"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{estToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. Comentarios (MongoDB + PostgreSQL)",
+      "item": [
+        {
+          "name": "Comentar matrícula propia (201)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Comentario responde 201\", () => pm.response.to.have.status(201));",
+                  "pm.test(\"Copia nombreEstudiante y cursoId desde PostgreSQL\", () => {",
+                  "  const c = pm.response.json();",
+                  "  pm.expect(c.nombreEstudiante).to.be.a(\"string\").and.not.empty;",
+                  "  pm.expect(c.cursoId).to.eql(pm.collectionVariables.get(\"cursoId\"));",
+                  "  pm.expect(c.matriculaId).to.eql(Number(pm.collectionVariables.get(\"matriculaId\")));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/comentarios",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "comentarios"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"matriculaId\": {{matriculaId}},\n  \"calificacion\": 5,\n  \"contenido\": \"Excelente curso, muy práctico y bien explicado.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{estToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Comentario duplicado (409)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Comentario duplicado responde 409 (E11000)\", () => {",
+                  "  pm.response.to.have.status(409);",
+                  "  pm.expect(pm.response.json().message).to.include(\"Ya existe un comentario\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/comentarios",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "comentarios"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"matriculaId\": {{matriculaId}},\n  \"calificacion\": 4,\n  \"contenido\": \"Intento de segundo comentario.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{estToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Comentar matrícula ajena (403)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Matrícula ajena responde 403\", () => {",
+                  "  pm.response.to.have.status(403);",
+                  "  pm.expect(pm.response.json().message).to.include(\"no te pertenece\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/comentarios",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "comentarios"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"matriculaId\": {{matriculaId}},\n  \"calificacion\": 1,\n  \"contenido\": \"No debería poder comentar esto.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Listar comentarios con populate (200)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Listado de comentarios responde 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"populate trae codigo, titulo y nivel del curso; orden descendente\", () => {",
+                  "  const data = pm.response.json().data;",
+                  "  const c = data.find(x => x.matriculaId === Number(pm.collectionVariables.get(\"matriculaId\")));",
+                  "  pm.expect(c).to.exist;",
+                  "  pm.expect(c.cursoId.codigo).to.eql(pm.collectionVariables.get(\"cursoCodigo\"));",
+                  "  pm.expect(c.cursoId).to.have.property(\"nivel\");",
+                  "  const fechas = data.map(x => new Date(x.createdAt).getTime());",
+                  "  pm.expect(fechas).to.eql([...fechas].sort((a, b) => b - a));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/comentarios",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "comentarios"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "Resumen por curso con aggregate (200)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Resumen responde 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"aggregate devuelve promedio y total del curso\", () => {",
+                  "  const fila = pm.response.json().data.find(r => r.cursoId === pm.collectionVariables.get(\"cursoId\"));",
+                  "  pm.expect(fila).to.exist;",
+                  "  pm.expect(fila.totalComentarios).to.eql(1);",
+                  "  pm.expect(fila.promedioCalificacion).to.eql(5);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/comentarios/resumen",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "comentarios",
+                "resumen"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "5. Borrado protegido y limpieza",
+      "item": [
+        {
+          "name": "Borrado protegido: curso con matrícula (409)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Curso con matrícula activa responde 409\", () => {",
+                  "  pm.response.to.have.status(409);",
+                  "  pm.expect(pm.response.json().message).to.include(\"matrícula\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/cursos/{{cursoId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "cursos",
+                "{{cursoId}}"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Limpieza: eliminar matrícula de prueba (200)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Eliminar matrícula responde 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/matriculas/{{matriculaId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "matriculas",
+                "{{matriculaId}}"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{estToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Limpieza: eliminar curso con cascada (200)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Eliminar curso responde 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"La cascada elimina el comentario del curso\", () => {",
+                  "  pm.expect(pm.response.json().comentariosEliminados).to.eql(1);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/cursos/{{cursoId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "cursos",
+                "{{cursoId}}"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Verificar cascada: comentarios del curso (0)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"No quedan comentarios del curso eliminado\", () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  pm.expect(pm.response.json().total).to.eql(0);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/comentarios?cursoId={{cursoId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "comentarios"
+              ],
+              "query": [
+                {
+                  "key": "cursoId",
+                  "value": "{{cursoId}}"
+                }
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "Verificar borrado: curso ya no existe (404)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Curso eliminado responde 404\", () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/cursos/{{cursoId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "cursos",
+                "{{cursoId}}"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000/api"
+    },
+    {
+      "key": "adminEmail",
+      "value": "admin@cursos.com"
+    },
+    {
+      "key": "adminPassword",
+      "value": "Admin123*"
+    },
+    {
+      "key": "estEmail",
+      "value": "estudiante@cursos.com"
+    },
+    {
+      "key": "estPassword",
+      "value": "Estudiante123*"
+    },
+    {
+      "key": "adminToken",
+      "value": ""
+    },
+    {
+      "key": "estToken",
+      "value": ""
+    },
+    {
+      "key": "cursoCodigo",
+      "value": ""
+    },
+    {
+      "key": "runTag",
+      "value": ""
+    },
+    {
+      "key": "cursoId",
+      "value": ""
+    },
+    {
+      "key": "matriculaId",
+      "value": ""
+    }
+  ]
+}
