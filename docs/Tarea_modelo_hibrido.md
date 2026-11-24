@@ -1,6 +1,6 @@
 # Tarea individual U2 · Modelo híbrido PostgreSQL + MongoDB
 
-**Estudiante:** Isaac Maisincho  **N.º de lista:** ___  **Caso:** 8 · Cursos en línea
+**Estudiante:** Isaac Maisincho  **N.º de lista:** 8 **Caso:** 8 · Cursos en línea
 
 > **Pista del workload (Caso 8):** *la matrícula no se duplica; los módulos se leen junto con el curso.*
 
