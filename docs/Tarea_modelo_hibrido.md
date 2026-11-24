@@ -2,9 +2,6 @@
 
 **Estudiante:** Isaac Maisincho  **N.º de lista:** ___  **Caso:** 8 · Cursos en línea
 
-> Mismo formato que el workload del material de Modelado (lección 2.2) y que el ejemplo resuelto de la clínica
-> (`docs/ejemplo_clinica/Workload_clinica_hibrida.md`). Cada operación agrega la fila **Base**.
->
 > **Pista del workload (Caso 8):** *la matrícula no se duplica; los módulos se leen junto con el curso.*
 
 ## 1. Workload
